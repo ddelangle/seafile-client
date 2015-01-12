@@ -1,7 +1,7 @@
 #include "utils-mac.h"
 
-#include <Cocoa/Cocoa.h>
 #include <AvailabilityMacros.h>
+#import <Cocoa/Cocoa.h>
 #include <QString>
 
 #if !__has_feature(objc_arc)
@@ -15,7 +15,6 @@
 
 namespace utils {
 namespace mac {
-
 //TransformProcessType is not encouraged to use, aha
 //Sorry but not functional for OSX 10.7
 void setDockIconStyle(bool hidden) {
@@ -141,7 +140,6 @@ void set_auto_start(bool enabled)
         CFRelease(loginItems);
     }
 }
-
 
 } // namespace mac
 } // namespace utils

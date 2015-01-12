@@ -41,6 +41,10 @@ Configurator::Configurator()
 {
 }
 
+Configurator::~Configurator()
+{
+}
+
 void Configurator::checkInit()
 {
     if (needInitConfig()) {

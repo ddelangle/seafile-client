@@ -10,9 +10,36 @@
 #include <thread>
 #include <mutex>
 
-extern NSString *const kOnUpdateWatchSetNotification;
+#include <vector>
+#include <string>
+#import "FinderSync.h"
 
-@interface FinderSyncClient : NSObject
-- (void)getWatchSet;
-- (void)doSharedLink:(NSString*) fileName;
-@end
+struct LocalRepo {
+  LocalRepo() = default;
+  LocalRepo(const LocalRepo &) = default;
+  LocalRepo(LocalRepo &&) = default;
+  enum SyncState {
+    SYNC_STATE_DISABLED,
+    SYNC_STATE_WAITING,
+    SYNC_STATE_INIT,
+    SYNC_STATE_ING,
+    SYNC_STATE_DONE,
+    SYNC_STATE_ERROR,
+    SYNC_STATE_UNKNOWN,
+  };
+  std::string worktree;
+  SyncState status;
+};
+
+class FinderSyncClient {
+public:
+  FinderSyncClient(FinderSync *parent);
+  ~FinderSyncClient();
+  void getWatchSet();
+  void doSharedLink(const char* fileName);
+private:
+  bool connect();
+  FinderSync *parent_;
+  mach_port_t local_port_;
+  mach_port_t remote_port_;
+};

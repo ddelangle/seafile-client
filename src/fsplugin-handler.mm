@@ -138,7 +138,6 @@ std::unique_ptr<FinderSyncServerUpdater> fsplugin_updater;
 
     switch (msg->command) {
     case DoShareLink:
-        NSLog(@"received DoShareLink command with %s", msg->body);
         QMetaObject::invokeMethod(fsplugin_updater.get(), "doShareLink",
                                   Qt::QueuedConnection,
                                   Q_ARG(QString, msg->body));
@@ -286,7 +285,6 @@ void FinderSyncServerUpdater::doShareLink(QString path) {
 
 void FinderSyncServerUpdater::onShareLinkGenerated(const QString& link)
 {
-    NSLog(@"shared link %s", link.toUtf8().data());
     SharedLinkDialog *dialog = new SharedLinkDialog(link, NULL);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();

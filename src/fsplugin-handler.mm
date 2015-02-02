@@ -1,5 +1,6 @@
 #include "fsplugin-handler.h"
 #include <libkern/OSAtomic.h>
+#include <mach/mach.h>
 #import <Cocoa/Cocoa.h>
 
 #include <QFileInfo>

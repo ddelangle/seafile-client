@@ -19,11 +19,27 @@ IF (NOT CMAKE_GENERATOR STREQUAL Xcode)
     MESSAGE(FATAL_ERROR "Support only for Xcode generator")
 ENDIF()
 
+## Find OSX SDK 10.10
+
+SET(XCRUN_COMMAND "xcrun" "--sdk" "macosx10.10" "--show-sdk-path")
+SET(SDK_PATH "" CACHE STRING "path of osx 10.10 sdk")
+EXECUTE_PROCESS(
+  COMMAND ${XCRUN_COMMAND}
+  RESULT_VARIABLE HAD_ERROR
+  OUTPUT_VARIABLE SDK_PATH
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+IF(HAS_ERROR)
+  MESSAGE(WARNING "unable to run xcrun, using default Xcode path")
+ENDIF()
+
+## Find the dependencies
+
 FIND_LIBRARY(AppKit_LIBRARY AppKit)
 FIND_LIBRARY(FinderSync_LIBRARY FinderSync)
-
 FIND_LIBRARY(PlugInKit_LIBRARY PlugInKit
-  PATHS /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/PrivateFrameworks/)
+  PATHS ${SDK_PATH}/System/Library/PrivateFrameworks/
+        /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.10.sdk/System/Library/PrivateFrameworks/)
 
 if (NOT PlugInKit_LIBRARY)
   MESSAGE(FATAL_ERROR "PlugInKit not found")

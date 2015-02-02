@@ -16,7 +16,7 @@
 
 struct LocalRepo {
   LocalRepo() = default;
-  LocalRepo(const LocalRepo &) = default;
+  LocalRepo(const LocalRepo &) = delete;
   LocalRepo(LocalRepo &&) = default;
   enum SyncState {
     SYNC_STATE_DISABLED,

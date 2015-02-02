@@ -8,6 +8,9 @@
 
 #import "FinderSync.h"
 #import "FinderSyncClient.h"
+#include <utility>
+#include <map>
+#include <algorithm>
 
 @interface FinderSync ()
 
@@ -18,6 +21,17 @@
 @implementation FinderSync
 
 static std::vector<LocalRepo> repos;
+static std::map<std::string, std::pair<int, std::vector<NSURL *>>>
+    observed_files;
+static NSArray *badgeIdentifiers = @[
+  @"DISABLED",
+  @"WAITING",
+  @"INIT",
+  @"ING",
+  @"DONE",
+  @"ERROR",
+  @"UNKNOWN"
+];
 
 - (instancetype)init {
   self = [super init];
@@ -47,46 +61,79 @@ static std::vector<LocalRepo> repos;
 #pragma mark - Primary Finder Sync protocol methods
 
 - (void)beginObservingDirectoryAtURL:(NSURL *)url {
-  // The user is now seeing the container's contents.
-  // If they see it in more than one view at a time, we're only told once.
-  NSLog(@"beginObservingDirectoryAtURL:%@", url.filePathURL);
+  std::string filePath = url.fileSystemRepresentation;
+
+  // find the worktree dir in local repos
+  auto posOfLocalRepo = std::find_if(
+      repos.begin(), repos.end(), [&](decltype(repos)::value_type &repo) {
+        return 0 == strncmp(repo.worktree.c_str(), filePath.c_str(),
+                            repo.worktree.size());
+      });
+  if (posOfLocalRepo == repos.end()) {
+    return;
+  }
+
+  // insert the node based on worktree dir
+  auto posOfObservedFiles = observed_files.find(posOfLocalRepo->worktree);
+  if (posOfObservedFiles == observed_files.end()) {
+    auto value = decltype(observed_files)::value_type(
+        std::move(filePath),
+        decltype(observed_files)::mapped_type(posOfLocalRepo->status,
+                                              std::vector<NSURL *>()));
+    observed_files.emplace(std::move(value));
+  }
 }
 
 - (void)endObservingDirectoryAtURL:(NSURL *)url {
-  // The user is no longer seeing the container's contents.
-  NSLog(@"endObservingDirectoryAtURL:%@", url.filePathURL);
+  std::string filePath = url.fileSystemRepresentation;
+
+  // find the worktree dir in local repos
+  auto posOfLocalRepo = std::find_if(
+      repos.begin(), repos.end(), [&](decltype(repos)::value_type &repo) {
+        return 0 == strncmp(repo.worktree.c_str(), filePath.c_str(),
+                            repo.worktree.size());
+      });
+  if (posOfLocalRepo == repos.end())
+    return;
+
+  auto posOfObservedFiles = observed_files.find(posOfLocalRepo->worktree);
+  if (posOfObservedFiles == observed_files.end())
+    return;
+
+  // only remove the files under the current dir
+  auto &filelist = posOfObservedFiles->second.second;
+  filelist.erase(
+      std::remove_if(filelist.begin(), filelist.end(), [&](NSURL *fileurl) {
+        return [url isEqual:[fileurl URLByDeletingLastPathComponent]];
+      }), filelist.end());
 }
 
 - (void)requestBadgeIdentifierForURL:(NSURL *)url {
-  const char *filePath = url.fileSystemRepresentation;
-  NSLog(@"requestBadgeIdentifierFor:%s", filePath);
+  std::string filePath = url.fileSystemRepresentation;
 
-  const LocalRepo *current = nullptr;
-  for (const LocalRepo &repo : repos) {
-    if (0 == strncmp(repo.worktree.c_str(), filePath, repo.worktree.size())) {
-      current = &repo;
-      break;
-    }
-  }
+  // find where we have it
+  auto pos = std::find_if(
+      observed_files.begin(), observed_files.end(),
+      [&](decltype(observed_files)::value_type &observed_file) {
+        return 0 == strncmp(observed_file.first.c_str(), filePath.c_str(),
+                            observed_file.first.size());
+
+      });
+
   // if not found, unset it
-  if (!current) {
+  if (pos == observed_files.end()) {
     [[FIFinderSyncController defaultController] setBadgeIdentifier:@""
                                                             forURL:url];
     return;
   }
 
-  NSString *badgeIdentifier = @[
-    @"DISABLED",
-    @"WAITING",
-    @"INIT",
-    @"ING",
-    @"DONE",
-    @"ERROR",
-    @"UNKNOWN"
-  ][current->status];
+  // insert it into observed file list
+  pos->second.second.push_back(url);
 
-  [[FIFinderSyncController defaultController] setBadgeIdentifier:badgeIdentifier
-                                                          forURL:url];
+  // set badge image
+  [[FIFinderSyncController defaultController]
+      setBadgeIdentifier:badgeIdentifiers[pos->second.first]
+                  forURL:url];
 }
 
 #pragma mark - Menu and toolbar item support
@@ -126,19 +173,55 @@ static std::vector<LocalRepo> repos;
 
   dispatch_async(
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
-          self.client->doSharedLink(fileName.c_str());
+        self.client->doSharedLink(fileName.c_str());
       });
 }
 
 - (void)requestUpdateWatchSet {
   dispatch_async(
-      dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0),
-      ^{ self.client->getWatchSet(); });
+      dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+        self.client->getWatchSet();
+      });
 }
 
-- (void)updateWatchSet:(void *)new_repos {
-  // notification.userInfo;
-  repos = std::move(*static_cast<std::vector<LocalRepo> *>(new_repos));
+- (void)updateWatchSet:(void *)new_repos_ptr {
+  std::vector<LocalRepo> new_repos =
+      std::move(*static_cast<std::vector<LocalRepo> *>(new_repos_ptr));
+  // update repos and observed_files
+  // 1. insert new dirs (done by beginObservingDirectoryAtURL auto)
+  // 2. remove inexisting dirs (done by endObservingDirectoryAtURL auto)
+  // 3. update old dirs and files
+
+  // update old dirs and files
+  for (auto &new_repo : new_repos) {
+    // if not conflicting, ignore
+    if (repos.end() == std::find_if(repos.begin(), repos.end(),
+                                    [&](decltype(repos)::value_type &repo) {
+                                      return new_repo.worktree == repo.worktree;
+                                    }))
+      continue;
+
+    // if not found, ignore
+    auto pos = observed_files.find(new_repo.worktree);
+    if (pos == observed_files.end())
+      continue;
+
+    // update old dirs status
+    if (pos->second.first == new_repo.status)
+      return;
+    int new_status = new_repo.status;
+    pos->second.first = new_status;
+
+    // update old files status
+    for (NSURL *url : pos->second.second) {
+      // set badge image
+      [[FIFinderSyncController defaultController]
+          setBadgeIdentifier:badgeIdentifiers[new_status]
+                      forURL:url];
+    }
+  }
+
+  repos = std::move(new_repos);
   NSMutableArray *array = [NSMutableArray arrayWithCapacity:repos.size()];
   for (const LocalRepo &repo : repos) {
     [array addObject:[NSURL fileURLWithFileSystemRepresentation:repo.worktree

@@ -45,22 +45,23 @@ FinderSyncClient::FinderSyncClient(FinderSync *parent)
 
 FinderSyncClient::~FinderSyncClient() {
   if (local_port_) {
-    NSLog(@"disconnected from mach port %@", kFinderSyncMachPort);
+    NSLog(@"disconnected from local mach port");
     mach_port_mod_refs(mach_task_self(), local_port_, MACH_PORT_RIGHT_RECEIVE,
                        -1);
   }
   if (remote_port_) {
-    NSLog(@"disconnected from mach port %@", kFinderSyncMachPort);
+    NSLog(@"disconnected from remote mach port");
     mach_port_deallocate(mach_task_self(), remote_port_);
   }
 }
 
 void FinderSyncClient::connectionBecomeInvalid() {
   if (remote_port_) {
+    NSLog(@"lost connection with remote mach port");
     mach_port_deallocate(mach_task_self(), remote_port_);
     dispatch_async(dispatch_get_main_queue(), ^{
-        std::vector<LocalRepo> repos;
-        [parent_ updateWatchSet:&repos];
+      std::vector<LocalRepo> repos;
+      [parent_ updateWatchSet:&repos];
     });
     remote_port_ = MACH_PORT_NULL;
   }
@@ -68,35 +69,27 @@ void FinderSyncClient::connectionBecomeInvalid() {
 
 bool FinderSyncClient::connect() {
   if (!local_port_) {
-
     // Create a local port.
-    mach_port_t port;
-    kern_return_t kr =
-        mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &port);
+    kern_return_t kr = mach_port_allocate(
+        mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &local_port_);
     if (kr != KERN_SUCCESS) {
-      NSLog(@"failed to connect local mach port");
+      NSLog(@"failed to create local mach port");
       return FALSE;
     }
-    local_port_ = port;
-    NSLog(@"connected to local mach port %u", port);
   }
 
   if (!remote_port_) {
     // connect to the mach_port
-    mach_port_t port;
-
     kern_return_t kr = bootstrap_look_up(
         bootstrap_port,
         [kFinderSyncMachPort cStringUsingEncoding:NSASCIIStringEncoding],
-        &port);
+        &remote_port_);
 
     if (kr != KERN_SUCCESS) {
-      NSLog(@"failed to connect remote mach port");
+      // NSLog(@"failed to connect with remote mach port");
       return FALSE;
     }
-    remote_port_ = port;
-
-    NSLog(@"connected to remote mach port %u", remote_port_);
+    NSLog(@"connected to remote mach port");
   }
 
   return TRUE;
@@ -129,8 +122,7 @@ void FinderSyncClient::getWatchSet() {
                               100,             /*timeout, in milliseconds*/
                               MACH_PORT_NULL); /*no notification*/
   if (kr != MACH_MSG_SUCCESS) {
-    NSLog(@"failed to send getWatchSet request to remote mach port %u",
-          remote_port_);
+    NSLog(@"failed to send getWatchSet request");
     NSLog(@"mach error %s", mach_error_string(kr));
     if (kr == MACH_SEND_INVALID_DEST)
       connectionBecomeInvalid();
@@ -151,23 +143,21 @@ void FinderSyncClient::getWatchSet() {
                 100,                             /*timeout, in milliseconds*/
                 MACH_PORT_NULL);                 /*no notification*/
   if (kr != MACH_MSG_SUCCESS) {
-    NSLog(@"failed to receive getWatchSet reply from remote mach port %u",
-          remote_port_);
+    NSLog(@"failed to receive getWatchSet reply");
     NSLog(@"mach error %s", mach_error_string(kr));
     return;
   }
   size_t count = (recv_msg.header.msgh_size - sizeof(mach_msg_header_t)) /
                  sizeof(watch_dir_t);
   dispatch_async(dispatch_get_main_queue(), ^{
-      std::vector<LocalRepo> repos;
-      for (size_t i = 0; i != count; i++) {
-        LocalRepo repo;
-        repo.worktree = recv_msg.dirs[i].body;
-        repo.status =
-            static_cast<LocalRepo::SyncState>(recv_msg.dirs[i].status);
-        repos.emplace_back(std::move(repo));
-      }
-      [parent_ updateWatchSet:&repos];
+    std::vector<LocalRepo> repos;
+    for (size_t i = 0; i != count; i++) {
+      LocalRepo repo;
+      repo.worktree = recv_msg.dirs[i].body;
+      repo.status = static_cast<LocalRepo::SyncState>(recv_msg.dirs[i].status);
+      repos.emplace_back(std::move(repo));
+    }
+    [parent_ updateWatchSet:&repos];
   });
 }
 
@@ -192,12 +182,10 @@ void FinderSyncClient::doSharedLink(const char *fileName) {
   // send a message only
   kern_return_t kr = mach_msg_send(&msg.header);
   if (kr != MACH_MSG_SUCCESS) {
-    NSLog(@"failed to send doSharedLink %s to remote mach port %u", fileName,
-          remote_port_);
+    NSLog(@"failed to send doSharedLink %s", fileName);
     NSLog(@"mach error %s", mach_error_string(kr));
     if (kr == MACH_SEND_INVALID_DEST)
       connectionBecomeInvalid();
     return;
   }
-  NSLog(@"sent doSharedLink %s to remote mach port %u", fileName, remote_port_);
 }

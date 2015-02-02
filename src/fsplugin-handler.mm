@@ -24,6 +24,7 @@ namespace {
 const int kWatchDirMax = 100;
 const int kPathMaxSize = 256;
 NSString *const kFinderSyncMachPort = @"com.seafile.seafile-client.findersync.machport";
+const int kUpdateWatchSetInterval = 2000;
 };
 
 enum CommandType {
@@ -110,13 +111,13 @@ std::unique_ptr<FinderSyncServerUpdater> fsplugin_updater;
         NSLog(@"mach error %s", mach_error_string(kr));
         return;
     }
-    NSLog(@"registered mach port %u with name %@", port, kFinderSyncMachPort);
+    NSLog(@"registered mach port");
     [self.listenerPort setDelegate:self];
     [runLoop addPort:self.listenerPort forMode:NSDefaultRunLoopMode];
     while (fsplugin_online)
         [runLoop runMode:NSDefaultRunLoopMode beforeDate:[NSDate distantFuture]];
     [self.listenerPort invalidate];
-    NSLog(@"unregistered mach port %u", port);
+    NSLog(@"unregistered mach port");
     kr = mach_port_deallocate(mach_task_self(), port);
     if (kr != KERN_SUCCESS) {
         NSLog(@"failed to deallocate mach port %u", port);
@@ -213,7 +214,7 @@ FinderSyncServerUpdater::FinderSyncServerUpdater()
   : timer_(new QTimer(this))
 {
     timer_->setSingleShot(true);
-    timer_->start(2000);
+    timer_->start(kUpdateWatchSetInterval);
     connect(timer_, SIGNAL(timeout()), this, SLOT(updateWatchSet()));
 }
 
@@ -244,7 +245,7 @@ void FinderSyncServerUpdater::updateWatchSet() {
     for (LocalRepo &repo : watch_set_)
         rpc->getSyncStatus(repo);
 
-    timer_->start(1000);
+    timer_->start(kUpdateWatchSetInterval);
 }
 
 void FinderSyncServerUpdater::doShareLink(QString path) {

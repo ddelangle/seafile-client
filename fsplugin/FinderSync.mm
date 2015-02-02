@@ -12,18 +12,21 @@
 #include <map>
 #include <algorithm>
 
+#if !__has_feature(objc_arc)
+#error this file must be built with ARC support
+#endif
+
 @interface FinderSync ()
 
 @property(readwrite, nonatomic) FinderSyncClient *client;
 @property(readwrite, nonatomic, strong) NSTimer *timer;
 @end
 
-@implementation FinderSync
-
-static std::vector<LocalRepo> repos;
-static std::map<std::string, std::pair<int, std::vector<NSURL *>>>
+namespace {
+std::vector<LocalRepo> repos;
+std::map<std::string, std::pair<int, std::vector<NSURL *>>>
     observed_files;
-static NSArray *badgeIdentifiers = @[
+const NSArray *badgeIdentifiers = @[
   @"DISABLED",
   @"WAITING",
   @"INIT",
@@ -32,6 +35,10 @@ static NSArray *badgeIdentifiers = @[
   @"ERROR",
   @"UNKNOWN"
 ];
+constexpr double kGetWatchSetInterval = 5.0; // seconds
+} // anonymous namespace
+
+@implementation FinderSync
 
 - (instancetype)init {
   self = [super init];
@@ -42,7 +49,7 @@ static NSArray *badgeIdentifiers = @[
   // Set up client
   self.client = new FinderSyncClient(self);
   self.timer =
-      [NSTimer scheduledTimerWithTimeInterval:2.0
+      [NSTimer scheduledTimerWithTimeInterval:kGetWatchSetInterval
                                        target:self
                                      selector:@selector(requestUpdateWatchSet)
                                      userInfo:nil

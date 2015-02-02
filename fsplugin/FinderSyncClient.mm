@@ -8,6 +8,11 @@
 
 #import "FinderSyncClient.h"
 #include <servers/bootstrap.h>
+#include <mutex>
+
+#if !__has_feature(objc_arc)
+#error this file must be built with ARC support
+#endif
 
 namespace {
 NSString *const kFinderSyncMachPort =
@@ -15,7 +20,8 @@ NSString *const kFinderSyncMachPort =
 
 const int kWatchDirMax = 100;
 const int kPathMaxSize = 256;
-}
+std::mutex mach_msg_mutex;
+} //anonymous namespace
 
 enum CommandType {
   GetWatchSet = 0,
@@ -101,6 +107,7 @@ void FinderSyncClient::getWatchSet() {
           __PRETTY_FUNCTION__);
     return;
   }
+  std::lock_guard<std::mutex> mach_msg_lock(mach_msg_mutex);
   if (!connect()) {
     return;
   }
@@ -167,6 +174,7 @@ void FinderSyncClient::doSharedLink(const char *fileName) {
           __PRETTY_FUNCTION__);
     return;
   }
+  std::lock_guard<std::mutex> mach_msg_lock(mach_msg_mutex);
   if (!connect()) {
     return;
   }

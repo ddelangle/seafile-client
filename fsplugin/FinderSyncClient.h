@@ -40,7 +40,7 @@ public:
 private:
   bool connect();
   void connectionBecomeInvalid();
-  FinderSync *parent_;
+  FinderSync __weak *parent_;
   mach_port_t local_port_;
   mach_port_t remote_port_;
 };

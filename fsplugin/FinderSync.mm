@@ -18,14 +18,12 @@
 
 @interface FinderSync ()
 
-@property(readwrite, nonatomic) FinderSyncClient *client;
 @property(readwrite, nonatomic, strong) NSTimer *timer;
 @end
 
 namespace {
 std::vector<LocalRepo> repos;
-std::map<std::string, std::pair<int, std::vector<NSURL *>>>
-    observed_files;
+std::map<std::string, std::pair<int, std::vector<NSURL *>>> observed_files;
 const NSArray *badgeIdentifiers = @[
   @"DISABLED",
   @"WAITING",
@@ -36,6 +34,7 @@ const NSArray *badgeIdentifiers = @[
   @"UNKNOWN"
 ];
 constexpr double kGetWatchSetInterval = 5.0; // seconds
+FinderSyncClient *client_ = nullptr;
 } // anonymous namespace
 
 @implementation FinderSync
@@ -47,7 +46,7 @@ constexpr double kGetWatchSetInterval = 5.0; // seconds
         [[NSBundle mainBundle] bundlePath], __TIME__);
 
   // Set up client
-  self.client = new FinderSyncClient(self);
+  client_ = new FinderSyncClient(self);
   self.timer =
       [NSTimer scheduledTimerWithTimeInterval:kGetWatchSetInterval
                                        target:self
@@ -61,7 +60,7 @@ constexpr double kGetWatchSetInterval = 5.0; // seconds
 }
 
 - (void)dealloc {
-  delete self.client;
+  delete client_;
   NSLog(@"%s unloaded ; compiled at %s", __PRETTY_FUNCTION__, __TIME__);
 }
 
@@ -180,14 +179,14 @@ constexpr double kGetWatchSetInterval = 5.0; // seconds
 
   dispatch_async(
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
-        self.client->doSharedLink(fileName.c_str());
+        client_->doSharedLink(fileName.c_str());
       });
 }
 
 - (void)requestUpdateWatchSet {
   dispatch_async(
       dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
-        self.client->getWatchSet();
+        client_->getWatchSet();
       });
 }
 

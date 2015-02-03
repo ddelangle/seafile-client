@@ -21,7 +21,7 @@ NSString *const kFinderSyncMachPort =
 const int kWatchDirMax = 100;
 const int kPathMaxSize = 256;
 std::mutex mach_msg_mutex;
-} //anonymous namespace
+} // anonymous namespace
 
 enum CommandType {
   GetWatchSet = 0,

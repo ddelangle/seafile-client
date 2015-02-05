@@ -185,6 +185,8 @@ const char *kSeafileClientDownloadUrlChinese = "http://seafile.com/download/";
 const char *kRepoServerUrlProperty = "server-url";
 const char *kRepoRelayAddrProperty = "relay-address";
 
+QHash<QString, Account> accounts_cache_;
+
 } // namespace
 
 
@@ -531,3 +533,25 @@ void SeafileApplet::updateReposPropertyForHttpSync()
         }
     }
 }
+
+// TODO update cache once any account is deleted
+Account SeafileApplet::findAccountByRepo(const QString& repo_id)
+{
+    SeafileRpcClient *rpc = seafApplet->rpcClient();
+    if (!accounts_cache_.contains(repo_id)) {
+        QString relay_addr;
+        if (rpc->getRepoProperty(repo_id, kRepoRelayAddrProperty, &relay_addr) < 0) {
+            return Account();
+        }
+        const std::vector<Account>& accounts = seafApplet->accountManager()->accounts();
+        for (int i = 0; i < accounts.size(); i++) {
+            const Account& account = accounts[i];
+            if (account.serverUrl.host() == relay_addr) {
+                accounts_cache_[repo_id] = account;
+                break;
+            }
+        }
+    }
+    return accounts_cache_.value(repo_id, Account());
+}
+

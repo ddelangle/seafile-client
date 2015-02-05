@@ -185,30 +185,8 @@ std::unique_ptr<FinderSyncServerUpdater> fsplugin_updater;
 namespace {
 std::mutex watch_set_mutex_;
 std::vector<LocalRepo> watch_set_;
-QHash<QString, Account> accounts_cache_;
 const char *kRepoRelayAddrProperty = "relay-address";
 }
-
-Account findAccountByRepo(const QString& repo_id)
-{
-    SeafileRpcClient *rpc = seafApplet->rpcClient();
-    if (!accounts_cache_.contains(repo_id)) {
-        QString relay_addr;
-        if (rpc->getRepoProperty(repo_id, kRepoRelayAddrProperty, &relay_addr) < 0) {
-            return Account();
-        }
-        const std::vector<Account>& accounts = seafApplet->accountManager()->accounts();
-        for (int i = 0; i < accounts.size(); i++) {
-            const Account& account = accounts[i];
-            if (account.serverUrl.host() == relay_addr) {
-                accounts_cache_[repo_id] = account;
-                break;
-            }
-        }
-    }
-    return accounts_cache_.value(repo_id, Account());
-}
-
 
 FinderSyncServerUpdater::FinderSyncServerUpdater()
   : timer_(new QTimer(this))
@@ -265,7 +243,7 @@ void FinderSyncServerUpdater::doShareLink(QString path) {
         return;
     }
 
-    const Account account = findAccountByRepo(repo_id);
+    const Account account = SeafileApplet::findAccountByRepo(repo_id);
     if (!account.isValid()) {
         NSLog(@"invalid repo_id %s", repo_id.toUtf8().data());
         return;

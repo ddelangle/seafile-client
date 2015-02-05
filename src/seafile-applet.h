@@ -2,6 +2,7 @@
 #define SEAFILE_CLIENT_APPLET_H
 
 #include <QObject>
+#include "account.h"
 
 class Configurator;
 class DaemonManager;
@@ -33,6 +34,10 @@ public:
     void warningBox(const QString& msg, QWidget *parent=0);
     bool yesOrNoBox(const QString& msg, QWidget *parent=0, bool default_val=true);
     bool detailedYesOrNoBox(const QString& msg, const QString& detailed_text, QWidget *parent, bool default_val=true);
+
+    /// \brief find the Account By Repo ID
+    /// return an invalid Account if failed
+    static Account findAccountByRepo(const QString& repo_id);
 
     // Show error in a messagebox and exit
     void errorAndExit(const QString& error);

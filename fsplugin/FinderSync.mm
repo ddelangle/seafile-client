@@ -161,7 +161,7 @@ FinderSyncClient *client_ = nullptr;
 - (NSMenu *)menuForMenuKind:(FIMenuKind)whichMenu {
   // Produce a menu for the extension.
   NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
-  [menu addItemWithTitle:@"Get Share Link"
+  [menu addItemWithTitle:@"Get Seafile Share Link"
                   action:@selector(shareLinkAction:)
            keyEquivalent:@""];
 

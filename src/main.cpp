@@ -170,11 +170,8 @@ int main(int argc, char *argv[])
     // count if we have any instance running now. if more than one, exit
     if (count_process(APPNAME) > 1) {
         if (QMessageBox::No == QMessageBox::warning(NULL, getBrand(),
-                QObject::tr("Found another running process of %1, kill it now?").arg(getBrand()),
+                QObject::tr("Found another running process of %1, kill it and start a new one?").arg(getBrand()),
                 QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes)) {
-            QMessageBox::critical(NULL, getBrand(),
-                QObject::tr("Unable to start %1 while another instance is running!").arg(getBrand()),
-                QMessageBox::Ok);
             return -1;
         }
 

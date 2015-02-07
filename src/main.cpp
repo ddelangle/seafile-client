@@ -3,6 +3,7 @@
 #include <QMessageBox>
 #include <QWidget>
 #include <QDir>
+#include <QThread>
 
 #include <glib-object.h>
 #include <cstdio>
@@ -168,9 +169,29 @@ int main(int argc, char *argv[])
 
     // count if we have any instance running now. if more than one, exit
     if (count_process(APPNAME) > 1) {
-        QMessageBox::warning(NULL, getBrand(),
-                             QObject::tr("%1 is already running").arg(getBrand()),
-                             QMessageBox::Ok);
+        if (QMessageBox::No == QMessageBox::warning(NULL, getBrand(),
+                QObject::tr("Found another running process of %1, kill it now?").arg(getBrand()),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes)) {
+            QMessageBox::critical(NULL, getBrand(),
+                QObject::tr("Unable to start %1 while another instance is running!").arg(getBrand()),
+                QMessageBox::Ok);
+            return -1;
+        }
+
+        shutdown_process(APPNAME);
+
+        // sleep 100ms to await the os completing the operation
+        // oops in qt4 is a protected method
+#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+        QThread::msleep(100);
+#endif
+    }
+
+    // count if we still have any instance running now. if more than one, exit
+    if (count_process(APPNAME) > 1) {
+        QMessageBox::critical(NULL, getBrand(),
+            QObject::tr("Unable to start %1 due to the failure of shutting down the previous process").arg(getBrand()),
+            QMessageBox::Ok);
         return -1;
     }
 

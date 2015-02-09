@@ -207,3 +207,9 @@ Account AccountManager::getAccountBySignature(const QString& account_sig) const
 
     return Account();
 }
+
+bool AccountManager::clearAccountToken(const Account& account)
+{
+    // TODO: null the token
+    return true;
+}

@@ -27,6 +27,7 @@ public slots:
 
 private slots:
     void updateAvatar();
+    void logoutAccount();
 
 private:
     Q_DISABLE_COPY(AccountView)
@@ -36,6 +37,7 @@ private:
 
     // Account operations
     QAction *add_account_action_;
+    QAction *logout_action_;
     QAction *account_settings_action_;
     QAction *delete_account_action_;
     QMenu *account_menu_;

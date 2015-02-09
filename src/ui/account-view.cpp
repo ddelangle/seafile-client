@@ -142,6 +142,12 @@ void AccountView::onAccountChanged()
     account_menu_->addAction(add_account_action_);
 
     if (!accounts.empty()) {
+        logout_action_ = new QAction(tr("Logout"), this);
+        logout_action_->setIcon(QIcon(":/images/logout.png"));
+        logout_action_->setIconVisibleInMenu(true);
+        connect(logout_action_, SIGNAL(triggered()), this, SLOT(logoutAccount()));
+        account_menu_->addAction(logout_action_);
+
         delete_account_action_ = new QAction(tr("Delete this account"), this);
         delete_account_action_->setIcon(QIcon(":/images/delete-account.png"));
         delete_account_action_->setIconVisibleInMenu(true);
@@ -195,4 +201,19 @@ void AccountView::updateAvatar()
     mAccountBtn->setIcon(QIcon(":/images/account.png"));
     // will trigger a GetAvatarRequest
     service->getAvatar(account.username);
+}
+
+/**
+ * Only remove the api token of the account. The accout would still be shown
+ * in the account list.
+ */
+void AccountView::logoutAccount()
+{
+    QString question = tr("Are you sure to logout this account?");
+
+    if (seafApplet->yesOrNoBox(question, this, false)) {
+        const Account& account = seafApplet->accountManager()->currentAccount();
+        FileBrowserManager::getInstance()->closeAllDialogByAccount(account);
+        seafApplet->accountManager()->clearAccountToken(account);
+    }
 }

@@ -2,6 +2,8 @@
 #include <QAction>
 #include <QToolButton>
 #include <QScopedPointer>
+#include <QPainter>
+#include <QBitmap>
 
 #include "account.h"
 #include "account.h"
@@ -17,6 +19,9 @@
 #include "filebrowser/file-browser-manager.h"
 
 #include "account-view.h"
+namespace {
+const int kAvatarSize = 32;
+}
 
 AccountView::AccountView(QWidget *parent)
     : QWidget(parent)
@@ -27,6 +32,17 @@ AccountView::AccountView(QWidget *parent)
     account_menu_ = new QMenu;
     mAccountBtn->setMenu(account_menu_);
     mAccountBtn->setPopupMode(QToolButton::InstantPopup);
+    mAccountBtn->setFixedSize(QSize(kAvatarSize, kAvatarSize));
+
+    QImage mask_img(kAvatarSize * 2, kAvatarSize * 2, QImage::Format_Mono);
+    mask_img.fill(0xff);
+    QPainter mask_ptr(&mask_img);
+    mask_ptr.setRenderHint(QPainter::Antialiasing);
+    mask_ptr.setRenderHint(QPainter::HighQualityAntialiasing);
+    mask_ptr.setBrush(QBrush(QColor(0, 0, 0)));
+    mask_ptr.drawRoundedRect(QRectF(0, 0, kAvatarSize, kAvatarSize), kAvatarSize/2.0, kAvatarSize/2.0);
+    QBitmap bmp = QBitmap::fromImage(mask_img);
+    mAccountBtn->setMask(bmp);
 
     onAccountChanged();
 
@@ -177,7 +193,7 @@ void AccountView::onAccountItemClicked()
 
 void AccountView::updateAvatar()
 {
-    mAccountBtn->setIconSize(QSize(32, 32));
+    mAccountBtn->setIconSize(QSize(kAvatarSize, kAvatarSize));
     const Account account = seafApplet->accountManager()->currentAccount();
     if (!account.isValid())  {
         mAccountBtn->setIcon(QIcon(":/images/account.png"));

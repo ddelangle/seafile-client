@@ -92,4 +92,7 @@ third_party/breakpad
 /GRTAGS
 /gtags.files
 
+# tools
+/tools/remove_unused_png/remove_unused_png
+
 .deps
